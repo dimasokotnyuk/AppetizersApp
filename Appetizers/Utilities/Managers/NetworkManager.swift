@@ -18,65 +18,18 @@ final class NetworkManager {
     
     private init() {}
     
-    func getAppetizers(completed: @escaping (Result<[Appetizer], APError>) -> Void) {
+    func getAppetizers() async throws -> [Appetizer] {
         guard let url = URL(string: appetizerURL) else {
-            completed(.failure(.invalidURL))
-            return
+            throw APError.invalidURL
         }
         
-        let task = URLSession.shared.dataTask(with: URLRequest(url: url)) { data, response, error in
-            if let _ = error  {
-                completed(.failure(.unabaleToComplete))
-                return
-            }
-            
-            guard let response = response as? HTTPURLResponse, response.statusCode == 200 else {
-                completed(.failure(.invalidResponse))
-                return
-            }
-            
-            guard let data = data else {
-                completed(.failure(.invalidData))
-                return
-            }
-            
-            do {
-                let decoder = JSONDecoder()
-                print(String(data: data, encoding: .utf8))
-                let decodedResponse = try decoder.decode([Appetizer].self, from: data)
-                completed(.success(decodedResponse))
-            } catch {
-                completed(.failure(.invalidData))
-            }
+        let (data, response) = try await URLSession.shared.data(from: url)
+        
+        do {
+            let decoder = JSONDecoder()
+            return try decoder.decode([Appetizer].self, from: data)
+        } catch {
+            throw APError.invalidData
         }
-        
-        task.resume()
-    }
-    
-    func downloadImage(fromURLString urlString: String, completed: @escaping (UIImage?) -> Void) {
-        let casheKey = NSString(string: urlString)
-        
-        if let image = cashe.object(forKey: casheKey) {
-            completed(image)
-            return
-        }
-        
-        guard let url = URL(string: urlString) else {
-            completed(nil)
-            return
-        }
-        
-        let task = URLSession.shared.dataTask(with: URLRequest(url: url)) { data, response, error in
-            
-            guard let data = data, let image = UIImage(data: data) else {
-                completed(nil)
-                return
-            }
-            
-            self.cashe.setObject(image, forKey: casheKey)
-            completed(image)
-        }
-        
-        task.resume()
     }
 }
